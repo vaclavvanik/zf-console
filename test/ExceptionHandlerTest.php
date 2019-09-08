@@ -71,4 +71,34 @@ class ExceptionHandlerTest extends TestCase
         }
         $this->assertNotContains('Previous: :previous', $message);
     }
+
+    public function testErrorHandlingTriggersListeners()
+    {
+        $exception = new RuntimeException('Exception raised', 1);
+
+        $handlerCount = 0;
+
+        $listener = function ($error) use ($exception, &$handlerCount) {
+            $this->assertSame($exception, $error, 'Listener did not receive same exception as was raised');
+            ++$handlerCount;
+        };
+
+        $listener2 = clone $listener;
+
+        $this->handler->attachListener($listener);
+        $this->handler->attachListener($listener2);
+
+        $exitCode = $this->handler->__invoke($exception);
+
+        $this->assertSame(2, $handlerCount);
+    }
+
+    public function testTheSameListenerIsAttachedOnlyOnce()
+    {
+        $listener = function () {
+        };
+        $this->handler->attachListener($listener);
+        $this->handler->attachListener($listener);
+        $this->assertAttributeCount(1, 'listeners', $this->handler);
+    }
 }

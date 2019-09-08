@@ -27,6 +27,11 @@ class ExceptionHandler
     protected $messageTemplate;
 
     /**
+     * @var callable[]
+     */
+    private $listeners = [];
+
+    /**
      * @param Console $console
      */
     public function __construct(Console $console)
@@ -80,6 +85,8 @@ EOT;
         $this->console->writeLine('Application exception: ', Color::RED);
         $this->console->write($message);
         $this->console->writeLine('');
+
+        $this->triggerListeners($exception);
 
         // Exceptions always indicate an error status; however, most have a
         // code of zero; set it to 1 in such cases.
@@ -164,6 +171,41 @@ EOT;
                 'Expected an Exception or Throwable; received %s',
                 (is_object($exception) ? get_class($exception) : gettype($exception))
             ));
+        }
+    }
+
+    /**
+     * Attach an error listener.
+     *
+     * Each listener receives one argument:
+     *
+     * - Throwable|Exception $error
+     *
+     * These instances are all immutable, and the return values of
+     * listeners are ignored; use listeners for reporting purposes
+     * only.
+     *
+     * @param callable $listener
+     * @return void
+     */
+    public function attachListener(callable $listener)
+    {
+        if (in_array($listener, $this->listeners, true)) {
+            return;
+        }
+
+        $this->listeners[] = $listener;
+    }
+
+    /**
+     * Trigger all error listeners.
+     * @param Exception|Throwable $exception
+     * @return void
+     */
+    private function triggerListeners($exception)
+    {
+        foreach ($this->listeners as $listener) {
+            $listener($exception);
         }
     }
 }
